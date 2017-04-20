@@ -1,0 +1,183 @@
+<pre class='metadata'>
+Title: HTTP => HTTPS
+Shortname: http-is-https
+Level: 1
+Status: DREAM
+Editor: Mike West 56384, Google Inc., mkwst@google.com
+Abstract:
+    While `http://example.com/` and `https://example.com/` are distinct origins, web developers
+    would be well-served to ensure that they represent the same set of resources.
+Markup Shorthands: css off, markdown on
+</pre>
+<pre class="link-defaults">
+spec:mixed-content; text:blockable; type:dfn
+spec:fetch; type:dfn; for:/; text:response
+</pre>
+
+<pre class="copyright">&copy;2017, Google, Inc. All rights reserved.</pre>
+
+Distinctions without Differences {#distinctions}
+================================
+
+A URL's origin consists of a [=url/scheme=], a [=url/host=], and a [=url/port=]. Two URLs have
+the the same [=url/origin=] if and only if these properties are exact matches. `https://a.example/`
+and `https://b.example/` are distinct, as are `https://a.example:123/` and `https://a.example:456/`.
+Generally, this matches our intuitions: different hostnames clearly indicate different websites,
+and alternate services on a single host generally correspond to alternate ports. The scheme,
+however, is less clearly indicative: it's quite likely that `http://a.example/` and
+`https://a.example/` represent the same set of resources.
+
+Likely enough, in fact, that we should consider the latter a variant of the former that should be
+actively preferred when possible.
+
+ISSUE: Gather some exciting data to make this more researchy and reviewed, as opposed to its
+current "Old Man Yelling At Cloud" formulation of opinion.
+
+URL Variants {#variants}
+============
+
+<div algorithm="unauthenticated variant">
+    Given an <a><i lang="la">a priori</i> authenticated URL</a> (|url|), its
+    <dfn for="url">unauthenticated variant</dfn> is the URL resulting from following the following
+    steps:
+
+    1.  Let |result| be a copy of |url|.
+
+    2.  If |url|'s [=url/scheme=] is `https`, set |result|'s [=url/scheme=] to `http`.
+
+    3.  If |url|'s [=url/scheme=] is `wss`, set |result|'s [=url/scheme=] to `ws`.
+
+    4.  If |url|'s [=url/port=] is `443`, set |result|'s [=url/port=] to `80`.
+
+    5.  Return |result|.
+
+    Likewise, given an [=potentially trustworthy origin=] (|origin|), its
+    <dfn for="origin">unauthenticated variant</dfn> is the origin resulting from following the
+    following steps:
+    
+    1.  Let |result| be a copy of |origin|.
+
+    2.  If |origin|'s [=origin/scheme=] is `https`, set |result|'s [=origin/scheme=] to `http`.
+
+    3.  If |origin|'s [=origin/scheme=] is `wss`, set |result|'s [=origin/scheme=] to `ws`.
+
+    4.  If |origin|'s [=origin/port=] is `443`, set |result|'s [=origin/port=] to `80`.
+
+    5.  Return |result|.
+
+    <div class="example">
+        *   `https://example.com/whatever.txt`'s [=url/unauthenticated variant=] is
+            `http://example.com/whatever.txt`.
+        *   `https://example.com:123/whatever.txt`'s [=url/unauthenticated variant=] is
+            `http://example.com:123/whatever.txt`.
+        *   `wss://example.com/whatever.txt`'s [=url/unauthenticated variant=] is
+            `ws://example.com/whatever.txt`.
+        *   `wss://example.com:456/whatever.txt`'s [=url/unauthenticated variant=] is
+            `ws://example.com:456/whatever.txt`.
+    </div>
+</div>
+
+<div algorithm="authenticated variant">
+    Given an URL that is not an <a><i lang="la">a priori</i> authenticated URL</a> (|url|), its
+    <dfn for="url">authenticated variant</dfn> is the URL resulting from following the following
+    steps:
+
+    1.  Let |result| be a copy of |url|.
+
+    2.  If |url|'s [=url/scheme=] is `http`, set |result|'s [=url/scheme=] to `https`.
+
+    3.  If |url|'s [=url/scheme=] is `ws`, set |result|'s [=url/scheme=] to `wss`.
+
+    4.  If |url|'s [=url/port=] is `443`, set |result|'s [=url/port=] to `443`.
+
+    5.  Return |result|.
+
+    Likewise, given an [=potentially trustworthy origin=] (|origin|), its
+    <dfn for="origin">authenticated variant</dfn> is the origin resulting from following the
+    following steps:
+    
+    1.  Let |result| be a copy of |origin|.
+
+    2.  If |origin|'s [=origin/scheme=] is `http`, set |result|'s [=origin/scheme=] to `https`.
+
+    3.  If |origin|'s [=origin/scheme=] is `ws`, set |result|'s [=origin/scheme=] to `wss`.
+
+    4.  If |origin|'s [=origin/port=] is `80`, set |result|'s [=origin/port=] to `443`.
+
+    5.  Return |result|.
+
+    <div class="example">
+        *   `http://example.com/whatever.txt`'s [=url/authenticated variant=] is
+            `https://example.com/whatever.txt`.
+        *   `http://example.com:123/whatever.txt`'s [=url/authenticated variant=] is
+            `https://example.com:123/whatever.txt`.
+        *   `ws://example.com/whatever.txt`'s [=url/authenticated variant=] is
+            `wss://example.com/whatever.txt`.
+        *   `ws://example.com:456/whatever.txt`'s [=url/authenticated variant=] is
+            `wss://example.com:456/whatever.txt`.
+    </div>
+</div>
+
+ISSUE: It might make more sense for non-default ports to not have (un)authenticated variants, as
+it's pretty unlikely that folks will run a server capable of TLS and non-TLS on the same port.
+
+Recommendations {#recommendations}
+===============
+
+For Web Developers {#developers}
+------------------
+
+Web developers should actively prefer secure communication channels, migrating sites from HTTP to
+HTTPS as rapidly as possible. When doing so, developers should ensure that all resources available
+on an [=origin/unauthenticated variant|unauthenticated origin=] remain available on that origin's
+[=origin/authenticated variant=].
+
+Ideally, the [=origin/unauthenticated variant=] can be deprecated completely. In this case:
+
+1.  Requests to an [=url/unauthenticated variant|unauthenticated=] URL should respond by redirecting
+    to the URL's [=url/authenticated variant=] with a 307 response.
+
+    ISSUE: Google's <a href="https://support.google.com/webmasters/answer/6073543?hl=en">Secure your
+    site with HTTPS</a> page recommends a 301 response. I wonder why?
+
+2.  The [=url/authenticated variant=] should include a `Strict-Transport-Security` header in its
+    response [[RFC6797]].
+
+If the [=origin/unauthenticated variant=] needs to remain available in parallel with the
+[=origin/authenticated variant=] (in order to facilitate a transition, or support legacy clients),
+then:
+
+1.  Every resource available at an [=url/unauthenticated variant|unauthenticated=] URL should be
+    available in the same form at the URL's [=url/authenticated variant=]. That is, the [=response=]
+    returned for a request to a given [=url/unauthenticated variant|unauthenticated=] URL should
+    have an identical [=response/status=] and [=response/body=] to a [=response=] for a request to
+    that URL's [=url/authenticated variant=].
+
+    ISSUE: Something, something identical interesting headers, for some value of identical and
+    interesting.
+
+For Specification Authors {#spec-authors}
+-------------------------
+
+Specification authors should assume that [=url/unauthenticated variant|unauthenticated=] and
+[=url/authenticated variant|authenticated=] variants of a URL represent the same representation of a
+given resource, and should actively prefer the latter. The form this preference takes depends in
+large part upon the feature in question. For example:
+
+*   Content Security Policy already treats [=source expressions=] that specify
+    [=url/unauthenticated variant|unauthenticated=] sources as also including their
+    [=url/authenticated variant=]. That is, `script-src http://example.com` is treated as if it was
+    written `script-src https://example.com http://example.com`.
+
+*   Mixed Content could start upgrading requests for [=blockable|blockable mixed content=] to
+    [=url/authenticated variants=] rather than blocking them outright. That is,
+    `<script src='http://example.com/script.js'></script>` might result in execution of
+    `https://example.com/script.js`.
+
+Acknowledgements {#acks}
+================
+
+Thanks to Forbes for removing the canonical example of discord between the
+[=origin/unauthenticated variant|unauthenticated=] and
+[=origin/authenticated variant|authenticated=] variants of a given origin by migrating `forbes.com`
+to HTTPS all the time.
